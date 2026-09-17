@@ -1,34 +1,54 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, ActivityIndicator, Platform, ScrollView } from 'react-native';
 import { MockApi } from '../services/MockApi';
+import { MockCognito } from '../services/MockCognito';
 
 // Safely import MapView to avoid crashing the web preview if not configured
-let MapView, Polyline;
+let MapView, Polyline, Marker;
 if (Platform.OS !== 'web') {
   const Maps = require('react-native-maps');
   MapView = Maps.default;
   Polyline = Maps.Polyline;
+  Marker = Maps.Marker;
 }
 
 export default function MapScreen({ route, navigation }) {
   const { origin, destination, transportMode } = route.params || {};
   const [routes, setRoutes] = useState([]);
+  const [safeHavens, setSafeHavens] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadRoutes();
+    loadMapData();
   }, [origin, destination, transportMode]);
 
-  const loadRoutes = async () => {
+  const loadMapData = async () => {
     setLoading(true);
     try {
-      const fetchedRoutes = await MockApi.getRoutes(origin, destination, transportMode);
+      // Get current user to pass to routing engine for preference-based sorting
+      const session = await MockCognito.getSession();
+      const email = session ? session.email : null;
+
+      const fetchedRoutes = await MockApi.getRoutes(origin, destination, transportMode, email);
       setRoutes(fetchedRoutes);
+      
+      // Load safe havens near the starting coordinate
+      if (fetchedRoutes.length > 0 && fetchedRoutes[0].geometry.length > 0) {
+        const startCoord = fetchedRoutes[0].geometry[0];
+        const fetchedHavens = await MockApi.getSafeHavens(startCoord.latitude, startCoord.longitude);
+        setSafeHavens(fetchedHavens);
+      }
     } catch (error) {
-      alert("Error loading routes");
+      alert("Error loading map data");
     } finally {
       setLoading(false);
     }
+  };
+
+  const getHavenIcon = (type) => {
+    if (type === 'Police') return '👮';
+    if (type === 'Hospital') return '🏥';
+    return '🏪'; // Store
   };
 
   const renderRouteDetails = () => (
@@ -69,12 +89,12 @@ export default function MapScreen({ route, navigation }) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={{ marginTop: 10 }}>Calculating routes...</Text>
+        <Text style={{ marginTop: 10 }}>Loading routes and safe havens...</Text>
       </View>
     );
   }
 
-  // Web Fallback (since react-native-maps on Web needs Google Maps API key)
+  // Web Fallback
   if (Platform.OS === 'web') {
     return (
       <View style={styles.container}>
@@ -83,7 +103,13 @@ export default function MapScreen({ route, navigation }) {
           <Text style={styles.webMapSubtext}>(Native MapView is disabled on Web preview)</Text>
           {routes.map((r, i) => (
             <Text key={r.id} style={styles.webPolylineText}>
-              Route {i+1} line drawn: {r.geometry.length} coordinates
+              Route {i+1} drawn ({r.geometry.length} coordinates)
+            </Text>
+          ))}
+          <Text style={styles.webHavenTitle}>Safe Havens Found:</Text>
+          {safeHavens.map((h, i) => (
+            <Text key={h.id} style={styles.webHavenText}>
+              {getHavenIcon(h.type)} {h.name}
             </Text>
           ))}
         </View>
@@ -112,6 +138,18 @@ export default function MapScreen({ route, navigation }) {
             strokeWidth={4}
           />
         ))}
+        {safeHavens.map((h) => (
+          <Marker
+            key={h.id}
+            coordinate={h.geometry}
+            title={h.name}
+            description={`Safe Haven Type: ${h.type}`}
+          >
+            <View style={styles.markerBadge}>
+              <Text style={{fontSize: 20}}>{getHavenIcon(h.type)}</Text>
+            </View>
+          </Marker>
+        ))}
       </MapView>
       {renderRouteDetails()}
     </View>
@@ -133,6 +171,8 @@ const styles = StyleSheet.create({
   webMapText: { fontSize: 24, fontWeight: 'bold', color: '#555' },
   webMapSubtext: { fontSize: 14, color: '#888', marginBottom: 20 },
   webPolylineText: { fontSize: 16, color: '#007AFF', marginVertical: 2 },
+  webHavenTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginTop: 15, marginBottom: 5 },
+  webHavenText: { fontSize: 16, color: '#34C759', marginVertical: 2 },
   detailsContainer: {
     height: 250,
     backgroundColor: '#fff',
@@ -170,5 +210,6 @@ const styles = StyleSheet.create({
   routeStatText: { fontSize: 14, color: '#333' },
   riskContainer: { marginTop: 8, padding: 8, backgroundColor: '#fff3cd', borderRadius: 6 },
   riskTitle: { fontSize: 12, fontWeight: 'bold', color: '#856404', marginBottom: 4 },
-  riskItem: { fontSize: 12, color: '#856404', marginLeft: 5 }
+  riskItem: { fontSize: 12, color: '#856404', marginLeft: 5 },
+  markerBadge: { backgroundColor: '#fff', padding: 4, borderRadius: 15, borderWidth: 1, borderColor: '#34C759' }
 });

@@ -98,8 +98,19 @@ export const MockApi = {
   },
 
   // Simulates: GET /routes (Route Lambda -> Map Provider)
-  getRoutes: async (origin, destination, mode) => {
+  getRoutes: async (origin, destination, mode, email) => {
     await new Promise(resolve => setTimeout(resolve, 800)); // Simulate routing engine delay
+
+    // Fetch user profile to get safety preference (defaults to 0.5)
+    let safetyPreference = 0.5;
+    if (email) {
+      try {
+        const profile = await MockApi.getUserProfile(email);
+        safetyPreference = profile.safetyPreference;
+      } catch (e) {
+        console.warn("Could not fetch profile for routing preference");
+      }
+    }
 
     // Fetch segments from mock DynamoDB
     const seg1 = await MockApi.getSafetySegment('seg_1');
@@ -109,20 +120,37 @@ export const MockApi = {
     // Pass through Mock ML Scoring Model
     const timeOfDay = new Date().getHours() >= 18 || new Date().getHours() < 6 ? 'night' : 'day';
     
-    const seg1Scored = MockApi.SafetyScoringFunction(seg1, timeOfDay, mode);
-    const seg2Scored = MockApi.SafetyScoringFunction(seg2, timeOfDay, mode);
-    const seg3Scored = MockApi.SafetyScoringFunction(seg3, timeOfDay, mode);
+    let seg1Scored = MockApi.SafetyScoringFunction(seg1, timeOfDay, mode);
+    let seg2Scored = MockApi.SafetyScoringFunction(seg2, timeOfDay, mode);
+    let seg3Scored = MockApi.SafetyScoringFunction(seg3, timeOfDay, mode);
+
+    // PHASE 14: Dynamic Hazard Avoidance
+    // Fetch active crowdsourced hazards from DB
+    try {
+      const reportsStr = await AsyncStorage.getItem('@mock_reports');
+      const reports = reportsStr ? JSON.parse(reportsStr) : [];
+      
+      if (reports.length > 0) {
+        // Mock intersection logic: Pretend the hazard intersects with seg_2
+        console.log(`[Lambda Mock] Detected ${reports.length} active hazards intersecting seg_2`);
+        seg2Scored.safety_score = Math.max(0, seg2Scored.safety_score - 40); // Heavy Penalty
+        seg2Scored.risk_factors.push("Active Crowdsourced Hazard");
+      }
+    } catch (e) {
+      console.warn("Could not fetch hazards");
+    }
 
     // Calculate average route safety scores
     const route1Safety = Math.round((seg1Scored.safety_score + seg2Scored.safety_score) / 2);
     const route2Safety = Math.round((seg1Scored.safety_score + seg3Scored.safety_score) / 2);
 
-    // Return dummy route data with Safety Scores attached!
-    return [
+    // Create route array
+    let routes = [
       {
         id: 'route_fastest',
         name: 'Fastest Route',
         distance: '5.2 km',
+        eta_mins: 15, // numeric for sorting
         eta: '15 min',
         safety_score: route1Safety,
         risk_factors: [...new Set([...seg1Scored.risk_factors, ...seg2Scored.risk_factors])],
@@ -138,8 +166,9 @@ export const MockApi = {
       },
       {
         id: 'route_alternative',
-        name: 'Alternative Route',
+        name: 'Safest Route',
         distance: '6.1 km',
+        eta_mins: 18, // numeric for sorting
         eta: '18 min',
         safety_score: route2Safety,
         risk_factors: [...new Set([...seg1Scored.risk_factors, ...seg3Scored.risk_factors])],
@@ -154,6 +183,20 @@ export const MockApi = {
         ]
       }
     ];
+
+    // SORTING ALGORITHM (Phase 11)
+    // If preference > 0.5, sort by Highest Safety.
+    // If preference <= 0.5, sort by Lowest ETA.
+    if (safetyPreference > 0.5) {
+      routes.sort((a, b) => b.safety_score - a.safety_score); // Descending safety
+      // Rename top route for UI clarity
+      routes[0].name += ' (Recommended Safe)';
+    } else {
+      routes.sort((a, b) => a.eta_mins - b.eta_mins); // Ascending time
+      routes[0].name += ' (Recommended Fast)';
+    }
+
+    return routes;
   },
 
   // Simulates: GET /safety/segment/{segment_id}
@@ -187,6 +230,83 @@ export const MockApi = {
       };
     } catch (error) {
       throw new Error("DynamoDB Simulation Error: " + error.message);
+    }
+  },
+
+  // Simulates: POST /sos (EventBridge Event Routing)
+  triggerSOS: async (location, userEmail) => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    try {
+      const usersStr = await AsyncStorage.getItem('@mock_cognito_users');
+      const users = usersStr ? JSON.parse(usersStr) : [];
+      const user = users.find(u => u.email === userEmail);
+      
+      const contacts = user?.emergencyContacts || [];
+      const contactNames = contacts.map(c => c.name).join(', ') || 'No contacts configured';
+      
+      console.log(`[AWS EventBridge Mock] SOS Triggered by ${userEmail} at [${location.lat}, ${location.lng}]`);
+      console.log(`[Amazon SNS Mock] Sending SMS to: ${contactNames}`);
+      
+      return { 
+        success: true, 
+        message: `SOS Sent to ${contactNames}`,
+        event_id: `evt_${Date.now()}`
+      };
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Simulates: GET /safe-havens?lat={lat}&lng={lng}
+  getSafeHavens: async (lat, lng) => {
+    await new Promise(resolve => setTimeout(resolve, 400));
+    
+    // Return dummy safe havens near the given coordinates
+    return [
+      {
+        id: 'haven_1',
+        name: 'Central Police Station',
+        type: 'Police',
+        geometry: { latitude: lat + 0.002, longitude: lng + 0.003 }
+      },
+      {
+        id: 'haven_2',
+        name: 'City General Hospital',
+        type: 'Hospital',
+        geometry: { latitude: lat - 0.003, longitude: lng - 0.001 }
+      },
+      {
+        id: 'haven_3',
+        name: '24/7 Pharmacy',
+        type: 'Store',
+        geometry: { latitude: lat + 0.001, longitude: lng - 0.004 }
+      }
+    ];
+  },
+
+  // Simulates: POST /report (Crowdsourcing Incident Report)
+  submitReport: async (reportData) => {
+    await new Promise(resolve => setTimeout(resolve, 600));
+    
+    try {
+      const reportsStr = await AsyncStorage.getItem('@mock_reports');
+      const reports = reportsStr ? JSON.parse(reportsStr) : [];
+      
+      const newReport = {
+        id: `rep_${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        ...reportData
+      };
+      
+      reports.push(newReport);
+      await AsyncStorage.setItem('@mock_reports', JSON.stringify(reports));
+      
+      console.log(`[DynamoDB Mock] Saved Report: ${JSON.stringify(newReport)}`);
+      
+      return { success: true, report_id: newReport.id };
+    } catch (error) {
+      throw error;
     }
   }
 };

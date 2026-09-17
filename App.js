@@ -12,6 +12,7 @@ import SafeHavenScreen from './screens/SafeHavenScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
+import ReportScreen from './screens/ReportScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -83,6 +84,7 @@ export default function App() {
             <Stack.Screen name="SOS" component={SOSScreen} options={{ title: 'Emergency SOS' }} />
             <Stack.Screen name="SafeHaven" component={SafeHavenScreen} options={{ title: 'Safe Haven' }} />
             <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
+            <Stack.Screen name="Report" component={ReportScreen} options={{ title: 'Report Hazard' }} />
           </>
         )}
       </Stack.Navigator>

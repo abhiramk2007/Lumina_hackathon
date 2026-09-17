@@ -80,6 +80,13 @@ export default function HomeScreen({ navigation }) {
         </TouchableOpacity>
         
         <TouchableOpacity 
+          style={[styles.actionButton, styles.reportButton]} 
+          onPress={() => navigation.navigate('Report')}
+        >
+          <Text style={styles.actionButtonText}>Report Hazard</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
           style={[styles.actionButton, styles.safeHavenButton]} 
           onPress={() => navigation.navigate('SafeHaven')}
         >
@@ -195,6 +202,9 @@ const styles = StyleSheet.create({
   sosButton: {
     backgroundColor: '#FF3B30',
   },
+  reportButton: {
+    backgroundColor: '#FF9500',
+  },
   safeHavenButton: {
     backgroundColor: '#007AFF',
   },
@@ -202,5 +212,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+    textAlign: 'center',
   }
 });
