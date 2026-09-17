@@ -1,0 +1,26 @@
+[
+  {
+    "segment_id": "seg_1",
+    "crime_density": 0.9,
+    "lighting_density": 1,
+    "activity_density": 0.9
+  },
+  {
+    "segment_id": "seg_2",
+    "crime_density": 0.9,
+    "lighting_density": 0.13,
+    "activity_density": 0.3
+  },
+  {
+    "segment_id": "seg_3",
+    "crime_density": 0.24,
+    "lighting_density": 1,
+    "activity_density": 0.6
+  },
+  {
+    "segment_id": "seg_4",
+    "crime_density": 1,
+    "lighting_density": 0,
+    "activity_density": 0.1
+  }
+]

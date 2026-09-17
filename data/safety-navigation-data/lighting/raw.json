@@ -1,0 +1,6 @@
+[
+  { "segment_id": "seg_1", "region_id": "area_north", "street_lights": 12, "length_meters": 100, "activity_level": "high" },
+  { "segment_id": "seg_2", "region_id": "area_north", "street_lights": 2, "length_meters": 150, "activity_level": "low" },
+  { "segment_id": "seg_3", "region_id": "area_south", "street_lights": 8, "length_meters": 80, "activity_level": "medium" },
+  { "segment_id": "seg_4", "region_id": "area_east", "street_lights": 0, "length_meters": 200, "activity_level": "very_low" }
+]

@@ -62,7 +62,11 @@ export default function HomeScreen({ navigation }) {
 
       <TouchableOpacity 
         style={styles.findRouteButton} 
-        onPress={() => navigation.navigate('Map')}
+        onPress={() => navigation.navigate('Map', { 
+          origin: 'Current Location', 
+          destination: destination || 'Unknown Destination', 
+          transportMode 
+        })}
       >
         <Text style={styles.findRouteText}>FIND ROUTE</Text>
       </TouchableOpacity>

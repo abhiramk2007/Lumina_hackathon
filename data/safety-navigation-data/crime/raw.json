@@ -1,0 +1,5 @@
+[
+  { "region_id": "area_north", "incidents_reported": 45, "time_period": "30_days" },
+  { "region_id": "area_south", "incidents_reported": 12, "time_period": "30_days" },
+  { "region_id": "area_east", "incidents_reported": 89, "time_period": "30_days" }
+]
