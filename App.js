@@ -4,6 +4,10 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { TouchableOpacity, Text, StyleSheet, View, ActivityIndicator } from 'react-native';
 
 import { MockCognito } from './services/MockCognito';
+import { Amplify } from 'aws-amplify';
+import awsconfig from './aws-exports';
+
+Amplify.configure(awsconfig);
 
 import HomeScreen from './screens/HomeScreen';
 import MapScreen from './screens/MapScreen';
@@ -13,6 +17,7 @@ import SettingsScreen from './screens/SettingsScreen';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import ReportScreen from './screens/ReportScreen';
+import SensorMonitor from './components/SensorMonitor';
 
 const Stack = createNativeStackNavigator();
 
@@ -43,17 +48,18 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator>
-        {session == null ? (
-          // Auth Stack
-          <>
-            <Stack.Screen 
-              name="Login" 
-              component={LoginScreen} 
-              options={{ headerShown: false }}
-              initialParams={{ setSession }}
-            />
+    <SensorMonitor>
+      <NavigationContainer>
+        <Stack.Navigator>
+          {session == null ? (
+            // Auth Stack
+            <>
+              <Stack.Screen 
+                name="Login" 
+                component={LoginScreen} 
+                options={{ headerShown: false }}
+                initialParams={{ setSession }}
+              />
             <Stack.Screen 
               name="Register" 
               component={RegisterScreen} 
@@ -89,6 +95,7 @@ export default function App() {
         )}
       </Stack.Navigator>
     </NavigationContainer>
+  </SensorMonitor>
   );
 }
 

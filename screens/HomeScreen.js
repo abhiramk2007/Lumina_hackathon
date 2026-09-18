@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import Slider from '@react-native-community/slider';
+import { MockCognito } from '../services/MockCognito';
+import { MockApi } from '../services/MockApi';
 
 export default function HomeScreen({ navigation }) {
   const [destination, setDestination] = useState('');
@@ -9,8 +11,31 @@ export default function HomeScreen({ navigation }) {
 
   const transportModes = ['Walk', 'Bicycle', '2-Wheeler', 'Car', 'Transit'];
 
+  useEffect(() => {
+    // Load default safety preference on mount
+    const loadDefaultPreference = async () => {
+      try {
+        const session = await MockCognito.getSession();
+        if (session && session.email) {
+          const profile = await MockApi.getUserProfile(session.email);
+          if (profile && typeof profile.safetyPreference === 'number') {
+            setSafetyPreference(profile.safetyPreference);
+          }
+        }
+      } catch (e) {
+        console.warn("Could not load default safety preference");
+      }
+    };
+    
+    // Refresh preference every time screen is focused (in case they changed it in Settings)
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadDefaultPreference();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
       <Text style={styles.header}>SAFETY NAVIGATION</Text>
       
       <View style={styles.section}>
@@ -44,7 +69,7 @@ export default function HomeScreen({ navigation }) {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.label}>Safety Preference:</Text>
+        <Text style={styles.label}>Safety Preference (Temporary for this route):</Text>
         <View style={styles.sliderLabels}>
           <Text style={styles.sliderLabel}>FAST</Text>
           <Text style={styles.sliderLabel}>SAFE</Text>
@@ -63,9 +88,10 @@ export default function HomeScreen({ navigation }) {
       <TouchableOpacity 
         style={styles.findRouteButton} 
         onPress={() => navigation.navigate('Map', { 
-          origin: 'Current Location', 
+          origin: 'Empire State Building, NY', // Hardcoded real address for testing Google Maps
           destination: destination || 'Unknown Destination', 
-          transportMode 
+          transportMode,
+          safetyPreference // Pass the explicit preference chosen on this screen
         })}
       >
         <Text style={styles.findRouteText}>FIND ROUTE</Text>

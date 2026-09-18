@@ -1,67 +1,61 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const USERS_KEY = '@mock_cognito_users';
-const SESSION_KEY = '@mock_cognito_session';
+import { signUp, signIn, signOut, getCurrentUser } from 'aws-amplify/auth';
 
 export const MockCognito = {
-  // Simulate Cognito Register
+  // Now using real AWS Cognito via Amplify v6
   register: async (email, password) => {
     try {
-      const usersStr = await AsyncStorage.getItem(USERS_KEY);
-      const users = usersStr ? JSON.parse(usersStr) : [];
-      
-      if (users.find(u => u.email === email)) {
-        throw new Error('User already exists');
-      }
-
-      users.push({ email, password }); // In a real app, passwords are never stored plain-text!
-      await AsyncStorage.setItem(USERS_KEY, JSON.stringify(users));
-      return { success: true, message: 'User registered successfully' };
+      const { isSignUpComplete, userId, nextStep } = await signUp({
+        username: email,
+        password,
+        options: {
+          userAttributes: {
+            email,
+          },
+        }
+      });
+      console.log('AWS Cognito Register:', userId);
+      // Note: Cognito requires email verification by default.
+      // If auto-confirm is not setup, the user will be unconfirmed.
+      return { success: true, message: 'User registered in AWS Cognito. Check email for verification code if required.' };
     } catch (error) {
+      console.error('AWS Cognito Register Error:', error);
       throw error;
     }
   },
 
-  // Simulate Cognito Login
   login: async (email, password) => {
     try {
-      const usersStr = await AsyncStorage.getItem(USERS_KEY);
-      const users = usersStr ? JSON.parse(usersStr) : [];
-      
-      const user = users.find(u => u.email === email && u.password === password);
-      if (!user) {
-        throw new Error('Invalid email or password');
+      const { isSignedIn, nextStep } = await signIn({ username: email, password });
+      if (isSignedIn) {
+        return { email, token: 'aws-cognito-session-active' };
       }
-
-      // Generate a fake JWT token / session
-      const session = {
-        token: `mock-jwt-token-${Date.now()}`,
-        email: user.email
-      };
-      
-      await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
-      return session;
+      throw new Error('Sign in not complete. Next step: ' + nextStep.signInStep);
     } catch (error) {
+      if (error.name === 'UserAlreadyAuthenticatedException') {
+        // Handle gracefully if a session is already active
+        return { email, token: 'aws-cognito-session-active' };
+      }
+      console.error('AWS Cognito Login Error:', error);
       throw error;
     }
   },
 
-  // Simulate Cognito Logout
   logout: async () => {
     try {
-      await AsyncStorage.removeItem(SESSION_KEY);
+      await signOut();
       return { success: true };
     } catch (error) {
+      console.error('AWS Cognito Logout Error:', error);
       throw error;
     }
   },
 
-  // Check if user is authenticated
   getSession: async () => {
     try {
-      const sessionStr = await AsyncStorage.getItem(SESSION_KEY);
-      return sessionStr ? JSON.parse(sessionStr) : null;
+      const { username, userId } = await getCurrentUser();
+      return { email: username, token: userId };
     } catch (error) {
+      // Not signed in
       return null;
     }
   }

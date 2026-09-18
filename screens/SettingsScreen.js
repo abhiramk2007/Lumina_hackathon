@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Button, ActivityIndicator, TextInput, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, Button, ActivityIndicator, TextInput, ScrollView, Switch } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { MockApi } from '../services/MockApi';
 import { MockCognito } from '../services/MockCognito';
@@ -19,6 +19,7 @@ export default function SettingsScreen({ navigation }) {
   const [safetyPreference, setSafetyPreference] = useState(0.5);
   const [emergencyContactName, setEmergencyContactName] = useState('');
   const [emergencyContactPhone, setEmergencyContactPhone] = useState('');
+  const [disturbanceDetection, setDisturbanceDetection] = useState(true); // Phase 16
 
   useEffect(() => {
     loadProfile();
@@ -45,44 +46,57 @@ export default function SettingsScreen({ navigation }) {
     try {
       const session = await MockCognito.getSession();
       if (!session) {
-        alert("Not logged in");
+        navigation.replace('Login');
         return;
       }
       setEmail(session.email);
       
       const profile = await MockApi.getUserProfile(session.email);
-      setTransportPreference(profile.transportPreference);
-      setSafetyPreference(profile.safetyPreference);
+      setTransportPreference(profile.transportPreference || 'Car');
+      setSafetyPreference(profile.safetyPreference ?? 0.5);
+      setDisturbanceDetection(profile.disturbanceDetection ?? true);
       
       if (profile.emergencyContacts && profile.emergencyContacts.length > 0) {
         setEmergencyContactName(profile.emergencyContacts[0].name || '');
         setEmergencyContactPhone(profile.emergencyContacts[0].phone || '');
       }
     } catch (error) {
-      alert('Error loading profile: ' + error.message);
+      alert("Error loading profile");
     } finally {
       setLoading(false);
     }
   };
 
-  const saveProfile = async () => {
+  const handleSave = async () => {
     setSaving(true);
     try {
+      const session = await MockCognito.getSession();
+      if (!session) {
+        alert("Not logged in");
+        return;
+      }
+      
       const profileData = {
         transportPreference,
         safetyPreference,
-        emergencyContacts: [
-          { name: emergencyContactName, phone: emergencyContactPhone }
-        ]
+        disturbanceDetection,
+        emergencyContacts: emergencyContactName && emergencyContactPhone 
+          ? [{ name: emergencyContactName, phone: emergencyContactPhone }] 
+          : []
       };
       
-      await MockApi.putUserProfile(email, profileData);
-      alert('Profile saved successfully!');
+      await MockApi.putUserProfile(session.email, profileData);
+      alert("Profile Saved!");
     } catch (error) {
-      alert('Error saving profile: ' + error.message);
+      alert("Error saving profile: " + error.message);
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleLogout = async () => {
+    await MockCognito.logout();
+    navigation.replace('Login');
   };
 
   if (loading) {
@@ -142,7 +156,19 @@ export default function SettingsScreen({ navigation }) {
         />
       </View>
 
-      <Button title={saving ? "Saving..." : "Save Profile"} onPress={saveProfile} color="#34C759" disabled={saving} />
+      <View style={[styles.section, styles.switchSection]}>
+        <View style={styles.switchRow}>
+          <Text style={styles.label}>Automatic Disturbance Detection</Text>
+          <Switch
+            value={disturbanceDetection}
+            onValueChange={setDisturbanceDetection}
+            trackColor={{ false: '#767577', true: '#34C759' }}
+          />
+        </View>
+        <Text style={styles.helpText}>Automatically triggers SOS countdown on sudden physical disturbance (e.g., throwing, running).</Text>
+      </View>
+
+      <Button title={saving ? "Saving..." : "Save Profile"} onPress={handleSave} color="#34C759" disabled={saving} />
       
       <View style={styles.spacer} />
 
@@ -177,6 +203,9 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: 'bold', marginBottom: 5 },
   emailText: { fontSize: 14, color: '#666', marginBottom: 20 },
   section: { marginBottom: 25 },
+  switchSection: { backgroundColor: '#fff', padding: 15, borderRadius: 8, borderWidth: 1, borderColor: '#ccc' },
+  switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  helpText: { fontSize: 12, color: '#666', fontStyle: 'italic' },
   label: { fontSize: 16, fontWeight: 'bold', marginBottom: 8 },
   input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, fontSize: 16, backgroundColor: '#fff' },
   sliderLabels: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 10 },

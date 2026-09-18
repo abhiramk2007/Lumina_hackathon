@@ -1,0 +1,10 @@
+{
+  "BackendStack": {
+    "LuminaApiEndpoint31CE162A": "https://e5kbjdyjh5.execute-api.us-east-1.amazonaws.com/prod/",
+    "UserPoolClientId": "1ekmjrjc38nskq7119i7p4kdhh",
+    "UserPoolId": "us-east-1_ZdPNr1fen",
+    "Region": "us-east-1",
+    "ApiEndpoint": "https://e5kbjdyjh5.execute-api.us-east-1.amazonaws.com/prod/",
+    "IdentityPoolId": "us-east-1:1f0631bc-bf6b-40ff-b01f-330f2372a980"
+  }
+}
