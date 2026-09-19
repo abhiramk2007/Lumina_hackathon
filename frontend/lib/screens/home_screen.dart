@@ -14,6 +14,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   GoogleMapController? _mapController;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -21,6 +22,12 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<LocationService>().getCurrentPosition();
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -83,9 +90,10 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 20),
 
               TextField(
+                controller: _searchController,
                 style: const TextStyle(color: Colors.black87),
                 decoration: InputDecoration(
-                  hintText: "Search destination",
+                  hintText: "Search destination (e.g. Bangalore Palace)",
                   hintStyle: const TextStyle(color: Colors.grey),
                   prefixIcon: const Icon(Icons.search, color: Colors.grey),
 
@@ -97,6 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderSide: BorderSide.none,
                   ),
                 ),
+                onSubmitted: (value) => _planRoute(context, locService),
               ),
 
               const SizedBox(height: 20),
@@ -166,15 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 height: 55,
 
                 child: ElevatedButton(
-                  onPressed: () {
-                   Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                      builder: (context) =>
-                          const RouteOptionsScreen(),
-                      ),
-                  );
-                },
+                  onPressed: () => _planRoute(context, locService),
 
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
@@ -267,7 +268,31 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       ],
     ),
-  );
+    );
+  }
+
+  void _planRoute(BuildContext context, LocationService locService) {
+    if (_searchController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a destination')),
+      );
+      return;
+    }
+    
+    String origin = "12.9716,77.5946"; // Bangalore default
+    if (locService.currentPosition != null) {
+      origin = "${locService.currentPosition!.latitude},${locService.currentPosition!.longitude}";
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RouteOptionsScreen(
+          origin: origin,
+          destination: _searchController.text.trim(),
+        ),
+      ),
+    );
   }
 
   Widget quickButton(IconData icon, String text) {

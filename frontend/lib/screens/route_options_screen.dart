@@ -2,9 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import 'route_details_screen.dart';
 
 class RouteOptionsScreen extends StatefulWidget {
-  const RouteOptionsScreen({super.key});
+  final String origin;
+  final String destination;
+
+  const RouteOptionsScreen({
+    super.key, 
+    required this.origin, 
+    required this.destination
+  });
 
   @override
   State<RouteOptionsScreen> createState() => _RouteOptionsScreenState();
@@ -32,8 +40,7 @@ class _RouteOptionsScreenState extends State<RouteOptionsScreen> {
     final auth = context.read<AuthService>();
     final email = auth.currentEmail ?? 'anonymous';
 
-    // Using mock origin/destination since there are no input fields yet
-    final routes = await api.getRoutes("Golden Gate Bridge", "Coit Tower", mode, email);
+    final routes = await api.getRoutes(widget.origin, widget.destination, mode, email);
 
     if (mounted) {
       setState(() {
@@ -97,7 +104,17 @@ class _RouteOptionsScreenState extends State<RouteOptionsScreen> {
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 15),
-                      child: routeCard(name, "$score / 100", time, cardColor),
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => RouteDetailsScreen(route: route),
+                            ),
+                          );
+                        },
+                        child: routeCard(name, "$score / 100", time, cardColor),
+                      ),
                     );
                   },
                 ),

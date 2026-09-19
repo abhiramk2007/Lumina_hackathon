@@ -33,7 +33,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
   Widget build(BuildContext context) {
     final screens = [
       const HomeScreen(),
-      const RouteOptionsScreen(),
+      const RouteOptionsScreen(origin: "", destination: ""),
       const SOSScreen(),
       const CommunityScreen(),
       ProfileScreen(
