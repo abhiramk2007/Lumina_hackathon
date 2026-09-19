@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import 'route_details_screen.dart';
@@ -39,8 +40,13 @@ class _RouteOptionsScreenState extends State<RouteOptionsScreen> {
     final api = context.read<ApiService>();
     final auth = context.read<AuthService>();
     final email = auth.currentEmail ?? 'anonymous';
+    
+    // Read preference
+    final prefs = await SharedPreferences.getInstance();
+    final bool isSafeModePreferred = prefs.getBool('isSafeModePreferred') ?? true; // Default to true (safe)
+    final double safetyPref = isSafeModePreferred ? 1.0 : 0.0;
 
-    final routes = await api.getRoutes(widget.origin, widget.destination, mode, email);
+    final routes = await api.getRoutes(widget.origin, widget.destination, mode, email, explicitSafetyPreference: safetyPref);
 
     if (mounted) {
       setState(() {
@@ -109,7 +115,11 @@ class _RouteOptionsScreenState extends State<RouteOptionsScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => RouteDetailsScreen(route: route),
+                              builder: (context) => RouteDetailsScreen(
+                                route: route,
+                                origin: widget.origin,
+                                destination: widget.destination,
+                              ),
                             ),
                           );
                         },

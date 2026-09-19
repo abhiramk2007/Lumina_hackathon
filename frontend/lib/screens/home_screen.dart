@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
 import '../services/location_service.dart';
+import '../services/places_service.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'route_options_screen.dart';
+import 'sos_screen.dart';
+import 'safe_haven_screen.dart';
+import 'community_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,6 +20,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   GoogleMapController? _mapController;
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _originController = TextEditingController(text: "Current Location");
+  final PlacesService _placesService = PlacesService();
 
   @override
   void initState() {
@@ -27,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _originController.dispose();
     super.dispose();
   }
 
@@ -87,37 +95,91 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 15),
 
-              TextField(
-                controller: _searchController,
-                style: const TextStyle(color: Colors.black87),
-                decoration: InputDecoration(
-                  hintText: "Search destination (e.g. Bangalore Palace)",
-                  hintStyle: const TextStyle(color: Colors.grey),
-                  prefixIcon: const Icon(Icons.search, color: Colors.grey),
+              Autocomplete<String>(
+                optionsBuilder: (TextEditingValue textEditingValue) async {
+                  if (textEditingValue.text.isEmpty || textEditingValue.text == "Current Location") {
+                    return const Iterable<String>.empty();
+                  }
+                  return await _placesService.getPlaceSuggestions(textEditingValue.text);
+                },
+                onSelected: (String selection) {
+                  _originController.text = selection;
+                },
+                fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                  // We need to set the initial value for the fieldViewBuilder's controller if it's not set
+                  if (controller.text.isEmpty && _originController.text == "Current Location") {
+                    controller.text = "Current Location";
+                  }
+                  // Sync our _originController with the internal controller
+                  controller.addListener(() {
+                    _originController.text = controller.text;
+                  });
+                  return TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    style: const TextStyle(color: Colors.black87),
+                    decoration: InputDecoration(
+                      hintText: "Source (e.g. Current Location)",
+                      hintStyle: const TextStyle(color: Colors.grey),
+                      prefixIcon: const Icon(Icons.my_location, color: Colors.grey),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  );
+                },
+              ),
 
-                  filled: true,
-                  fillColor: Colors.white,
+              const SizedBox(height: 15),
 
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(20),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-                onSubmitted: (value) => _planRoute(context, locService),
+              Autocomplete<String>(
+                optionsBuilder: (TextEditingValue textEditingValue) async {
+                  if (textEditingValue.text.isEmpty) {
+                    return const Iterable<String>.empty();
+                  }
+                  return await _placesService.getPlaceSuggestions(textEditingValue.text);
+                },
+                onSelected: (String selection) {
+                  _searchController.text = selection;
+                },
+                fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                  // Sync our _searchController with the internal controller
+                  controller.addListener(() {
+                    _searchController.text = controller.text;
+                  });
+                  return TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    style: const TextStyle(color: Colors.black87),
+                    decoration: InputDecoration(
+                      hintText: "Search destination (e.g. Bangalore Palace)",
+                      hintStyle: const TextStyle(color: Colors.grey),
+                      prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onSubmitted: (value) => _planRoute(context, locService),
+                  );
+                },
               ),
 
               const SizedBox(height: 20),
 
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  quickButton(Icons.home, "Home"),
-                  quickButton(Icons.work, "Work"),
-                  quickButton(Icons.school, "School"),
-                  quickButton(Icons.more_horiz, "Other"),
+                  quickButton(Icons.home, "Home", () => _navigateToSavedPlace('saved_home', 'Home')),
+                  quickButton(Icons.work, "Work", () => _navigateToSavedPlace('saved_work', 'Work')),
+                  quickButton(Icons.location_on, "Other", () => _navigateToSavedPlace('saved_other', 'Other')),
                 ],
               ),
 
@@ -229,35 +291,44 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 25),
 
-              Expanded(
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 15,
-                  mainAxisSpacing: 15,
-
+              SizedBox(
+                height: 100,
+                child: Row(
                   children: [
-                    featureCard(
-                        "SOS",
-                        Icons.warning,
-                        const Color(0xFFFFE5E5)
+                    Expanded(
+                      child: featureCard(
+                          "SOS",
+                          Icons.warning,
+                          const Color(0xFFFFE5E5),
+                          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SOSScreen())),
+                      ),
                     ),
-
-                    featureCard(
-                        "Safe Haven",
-                        Icons.home,
-                        const Color(0xFFF1E3FF)
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: featureCard(
+                          "Haven",
+                          Icons.home,
+                          const Color(0xFFF1E3FF),
+                          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SafeHavenScreen())),
+                      ),
                     ),
-
-                    featureCard(
-                        "My Journeys",
-                        Icons.menu_book,
-                        const Color(0xFFE9F5FF)
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: featureCard(
+                          "History",
+                          Icons.menu_book,
+                          const Color(0xFFE9F5FF),
+                          () {},
+                      ),
                     ),
-
-                    featureCard(
-                        "Community",
-                        Icons.groups,
-                        const Color(0xFFFFF2DE)
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: featureCard(
+                          "Community",
+                          Icons.groups,
+                          const Color(0xFFFFF2DE),
+                          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CommunityScreen())),
+                      ),
                     ),
                   ],
                 ),
@@ -271,6 +342,23 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _navigateToSavedPlace(String prefKey, String type) async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? savedAddress = prefs.getString(prefKey);
+    
+    if (savedAddress == null || savedAddress.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No $type address saved. Please set it in Profile > Saved Places.')),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    _searchController.text = savedAddress;
+    _planRoute(context, context.read<LocationService>());
+  }
+
   void _planRoute(BuildContext context, LocationService locService) {
     if (_searchController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -279,9 +367,12 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     
-    String origin = "12.9716,77.5946"; // Bangalore default
-    if (locService.currentPosition != null) {
-      origin = "${locService.currentPosition!.latitude},${locService.currentPosition!.longitude}";
+    String origin = _originController.text.trim();
+    if (origin.isEmpty || origin.toLowerCase() == "current location") {
+      origin = "12.9716,77.5946"; // Bangalore default
+      if (locService.currentPosition != null) {
+        origin = "${locService.currentPosition!.latitude},${locService.currentPosition!.longitude}";
+      }
     }
 
     Navigator.push(
@@ -295,41 +386,52 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget quickButton(IconData icon, String text) {
-    return Column(
-      children: [
-        CircleAvatar(
-          radius: 25,
-          backgroundColor: Colors.white,
-          child: Icon(icon, color: Colors.pink),
-        ),
-        const SizedBox(height: 6),
-        Text(text),
-      ],
+  Widget quickButton(IconData icon, String text, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          CircleAvatar(
+            radius: 25,
+            backgroundColor: Colors.white,
+            child: Icon(icon, color: Colors.pink),
+          ),
+          const SizedBox(height: 6),
+          Text(text),
+        ],
+      ),
     );
   }
 
-  Widget featureCard(String title, IconData icon, Color color) {
-    return Container(
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(20),
-      ),
+  Widget featureCard(String title, IconData icon, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(15),
+        ),
 
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
 
-        children: [
-          Icon(icon, size: 40, color: Colors.pink),
-          const SizedBox(height: 10),
-          Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
+          children: [
+            Icon(icon, size: 28, color: Colors.pink),
+            const SizedBox(height: 5),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2.0),
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 10,
+                  color: Colors.black87,
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

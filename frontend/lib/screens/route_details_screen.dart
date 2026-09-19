@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:math' as math;
-
+import 'package:url_launcher/url_launcher.dart';
 class RouteDetailsScreen extends StatefulWidget {
   final dynamic route;
+  final String origin;
+  final String destination;
 
-  const RouteDetailsScreen({super.key, required this.route});
+  const RouteDetailsScreen({
+    super.key, 
+    required this.route,
+    required this.origin,
+    required this.destination,
+  });
 
   @override
   State<RouteDetailsScreen> createState() => _RouteDetailsScreenState();
@@ -51,6 +58,29 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
         position: points.last,
         infoWindow: const InfoWindow(title: 'Destination'),
       ));
+    }
+  }
+
+  Future<void> _startNavigation() async {
+    final originStr = Uri.encodeComponent(widget.origin);
+    final destStr = Uri.encodeComponent(widget.destination);
+    
+    final url = Uri.parse('https://www.google.com/maps/dir/?api=1&origin=$originStr&destination=$destStr&dir_action=navigate');
+    
+    try {
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not open maps')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
     }
   }
 
@@ -223,7 +253,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
               height: 55,
 
               child: ElevatedButton(
-                onPressed: () {},
+                onPressed: _startNavigation,
 
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFF7FA7),

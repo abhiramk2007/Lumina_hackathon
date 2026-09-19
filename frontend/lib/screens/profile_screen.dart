@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'emergency_contacts_screen.dart';
+import 'saved_places_screen.dart';
 import '../services/auth_service.dart';
-class ProfileScreen extends StatelessWidget {
+
+class ProfileScreen extends StatefulWidget {
   final bool isDarkMode;
   final Function(bool) onThemeChanged;
 
@@ -13,15 +16,43 @@ class ProfileScreen extends StatelessWidget {
   });
 
   @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  bool _isSafeModePreferred = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPreferences();
+  }
+
+  Future<void> _loadPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isSafeModePreferred = prefs.getBool('isSafeModePreferred') ?? true;
+    });
+  }
+
+  Future<void> _toggleSafeMode(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isSafeModePreferred', value);
+    setState(() {
+      _isSafeModePreferred = value;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor:
-          isDarkMode ? const Color(0xFF1E1E1E) : const Color(0xFFFFF8F8),
+          widget.isDarkMode ? const Color(0xFF1E1E1E) : const Color(0xFFFFF8F8),
 
       appBar: AppBar(
         title: const Text("Profile"),
         backgroundColor:
-            isDarkMode ? Colors.black : const Color(0xFFFFD6E8),
+            widget.isDarkMode ? Colors.black : const Color(0xFFFFD6E8),
       ),
 
       body: SingleChildScrollView(
@@ -34,7 +65,7 @@ class ProfileScreen extends StatelessWidget {
             CircleAvatar(
               radius: 50,
               backgroundColor:
-                  isDarkMode ? Colors.grey.shade800 : const Color(0xFFFFD6E8),
+                  widget.isDarkMode ? Colors.grey.shade800 : const Color(0xFFFFD6E8),
 
               child: const Icon(
                 Icons.person,
@@ -50,7 +81,7 @@ class ProfileScreen extends StatelessWidget {
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: isDarkMode ? Colors.white : Colors.black,
+                color: widget.isDarkMode ? Colors.white : Colors.black,
               ),
             ),
 
@@ -58,7 +89,7 @@ class ProfileScreen extends StatelessWidget {
               "Stay Safe Always 💜",
               style: TextStyle(
                 color:
-                    isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+                    widget.isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
               ),
             ),
 
@@ -78,58 +109,96 @@ class ProfileScreen extends StatelessWidget {
   child: profileTile(
     Icons.phone,
     "Emergency Contacts",
-    isDarkMode,
+    widget.isDarkMode,
   ),
 ),
 
-            profileTile(
-              Icons.location_on,
-              "Saved Places",
-              isDarkMode,
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SavedPlacesScreen(isDarkMode: widget.isDarkMode),
+                  ),
+                );
+              },
+              child: profileTile(
+                Icons.location_on,
+                "Saved Places",
+                widget.isDarkMode,
+              ),
             ),
 
             profileTile(
               Icons.history,
               "Journey History",
-              isDarkMode,
+              widget.isDarkMode,
             ),
 
             profileTile(
               Icons.notifications,
               "Safety Alerts",
-              isDarkMode,
+              widget.isDarkMode,
             ),
 
             profileTile(
               Icons.settings,
               "Settings",
-              isDarkMode,
+              widget.isDarkMode,
             ),
 
             const SizedBox(height: 10),
 
             Card(
               color:
-                  isDarkMode ? const Color(0xFF2D2D2D) : Colors.white,
+                  widget.isDarkMode ? const Color(0xFF2D2D2D) : Colors.white,
 
-              child: SwitchListTile(
-                title: Text(
-                  "Dark Mode",
-                  style: TextStyle(
-                    color:
-                        isDarkMode ? Colors.white : Colors.black,
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    title: Text(
+                      "Dark Mode",
+                      style: TextStyle(
+                        color:
+                            widget.isDarkMode ? Colors.white : Colors.black,
+                      ),
+                    ),
+
+                    secondary: Icon(
+                      Icons.dark_mode,
+                      color:
+                          widget.isDarkMode ? Colors.white : Colors.black,
+                    ),
+
+                    value: widget.isDarkMode,
+
+                    onChanged: widget.onThemeChanged,
                   ),
-                ),
-
-                secondary: Icon(
-                  Icons.dark_mode,
-                  color:
-                      isDarkMode ? Colors.white : Colors.black,
-                ),
-
-                value: isDarkMode,
-
-                onChanged: onThemeChanged,
+                  const Divider(height: 1),
+                  SwitchListTile(
+                    title: Text(
+                      "Prefer Safe Routes",
+                      style: TextStyle(
+                        color:
+                            widget.isDarkMode ? Colors.white : Colors.black,
+                      ),
+                    ),
+                    subtitle: Text(
+                      "Toggle off to prioritize fastest routes.",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: widget.isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+                      ),
+                    ),
+                    secondary: Icon(
+                      _isSafeModePreferred ? Icons.shield : Icons.speed,
+                      color:
+                          widget.isDarkMode ? Colors.white : Colors.black,
+                    ),
+                    value: _isSafeModePreferred,
+                    onChanged: _toggleSafeMode,
+                  ),
+                ],
               ),
             ),
 

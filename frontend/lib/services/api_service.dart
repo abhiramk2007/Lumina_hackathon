@@ -32,14 +32,18 @@ class ApiService {
     }
   }
 
-  Future<List<dynamic>> getRoutes(String origin, String destination, String mode, String email) async {
+  Future<List<dynamic>> getRoutes(String origin, String destination, String mode, String email, {double? explicitSafetyPreference}) async {
     try {
-      final uri = Uri.parse('${AWSConfig.apiEndpoint}routes').replace(queryParameters: {
+      final queryParams = {
         'origin': origin,
         'destination': destination,
         'mode': mode,
         'email': email,
-      });
+      };
+      if (explicitSafetyPreference != null) {
+        queryParams['explicitSafetyPreference'] = explicitSafetyPreference.toString();
+      }
+      final uri = Uri.parse('${AWSConfig.apiEndpoint}routes').replace(queryParameters: queryParams);
       final response = await http.get(uri, headers: await _getHeaders());
       
       if (response.statusCode == 200) {
