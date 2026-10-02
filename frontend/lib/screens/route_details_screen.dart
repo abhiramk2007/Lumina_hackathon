@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:math' as math;
 import 'package:url_launcher/url_launcher.dart';
+import 'safe_haven_screen.dart';
 class RouteDetailsScreen extends StatefulWidget {
   final dynamic route;
   final String origin;
@@ -168,16 +169,16 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
             const SizedBox(height: 20),
 
             if (riskFactors.isNotEmpty) ...[
-              const Text(
-                "Risk Factors",
+              Text(
+                isSafe ? "Why this route is safer" : "Risk Factors",
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: Colors.red,
+                  color: isSafe ? Colors.green : Colors.red,
                 ),
               ),
               const SizedBox(height: 15),
-              ...riskFactors.map((r) => reasonTile(r.toString(), false)).toList(),
+              ...riskFactors.map((r) => reasonTile(r.toString(), isSafe)).toList(),
             ] else ...[
               const Text(
                 "Why this route?",
@@ -265,6 +266,48 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                     color: Colors.white,
                     fontSize: 18,
                   ),
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 15),
+
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SafeHavenScreen(
+                        routeGeometry: widget.route['geometry'],
+                        customTitle: "Safe Havens on Route",
+                      ),
+                    ),
+                  );
+                },
+
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFE6EE).withOpacity(0.9),
+                  elevation: 0,
+                ),
+
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.shield, color: Colors.pink),
+                    SizedBox(width: 10),
+                    Text(
+                      "Find Safe Havens on Route",
+                      style: TextStyle(
+                        color: Colors.black87,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
